@@ -51,6 +51,36 @@ export const uploadSubmission = async (req, res) => {
       })
     }
     
+    // Verify bank and user exist before creating submission
+    const bank = await prisma.bank.findUnique({
+      where: { id: bankId }
+    })
+    
+    if (!bank) {
+      return res.status(400).json({
+        error: 'Bank not found',
+        message: `Bank with ID ${bankId} does not exist in database`
+      })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user) {
+      return res.status(400).json({
+        error: 'User not found',
+        message: `User with ID ${userId} does not exist in database`
+      })
+    }
+
+    if (user.bankId !== bankId) {
+      return res.status(400).json({
+        error: 'User does not belong to this bank',
+        message: `User ${userId} belongs to bank ${user.bankId}, not ${bankId}`
+      })
+    }
+
     // Create submission
     const submission = await prisma.submission.create({
       data: {
