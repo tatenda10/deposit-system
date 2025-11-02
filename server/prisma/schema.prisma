@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Bank {
+  id          String   @id @default(cuid())
+  bankCode    String   @unique
+  bankName    String
+  email       String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  submissions Submission[]
+}
+
+model User {
+  id          String   @id @default(cuid())
+  bankId      String
+  email       String   @unique
+  name        String
+  role        String   // Uploader, Reviewer, Approver
+  password    String   // hashed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  bank        Bank     @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  bankId        String
+  userId        String
+  period        String   // e.g., "2024-01" or "Q4-2023"
+  returnType    String   // monthly, quarterly, scv, balance_sheet, income_statement
+  status        String   @default("pending") // pending, validated, approved, rejected
+  submittedAt   DateTime @default(now())
+  validatedAt   DateTime?
+  approvedAt    DateTime?
+  rejectedAt    DateTime?
+  reviewerId    String?
+  comments      String?
+  
+  bank          Bank     @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files         SubmissionFile[]
+  validationResult ValidationResult?
+}
+
+model SubmissionFile {
+  id            String   @id @default(cuid())
+  submissionId  String
+  fileName      String
+  filePath      String
+  fileType      String   // xlsx, xls
+  fileSize      Int      // bytes
+  uploadedAt    DateTime @default(now())
+  
+  submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model ValidationResult {
+  id            String   @id @default(cuid())
+  submissionId  String   @unique
+  status        String   // passed, failed, warning
+  errors        Int      @default(0)
+  warnings      Int      @default(0)
+  details       String?  // JSON string
+  validatedAt   DateTime @default(now())
+  
+  submission    Submission        @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  details_list  ValidationDetail[]
+}
+
+model ValidationDetail {
+  id              String   @id @default(cuid())
+  validationResultId String
+  field           String
+  status          String   // valid, invalid, warning
+  message         String
+  rowNumber       Int?
+  
+  validationResult ValidationResult @relation(fields: [validationResultId], references: [id], onDelete: Cascade)
+}
+
